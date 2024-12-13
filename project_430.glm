@@ -1,0 +1,196 @@
+module generators;
+module powerflow {
+    solver_method FBS;  
+    default_maximum_voltage_error 0.001;
+};
+module tape;
+
+clock {
+    timezone PST+8PDT;
+    starttime '2024-01-01 00:00:00';
+    stoptime '2024-01-01 01:00:00';
+}
+
+object line_configuration {
+    name LC300;
+    conductor_A OH100;
+    conductor_B OH100;
+    conductor_C OH100;
+    conductor_N OH101;
+    z11 0.1+0.2j;
+    z12 0.1+0.2j;
+    z13 0.1+0.2j;
+}
+
+object overhead_line_conductor {
+    name OH100;
+    resistance 0.306;
+    geometric_mean_radius 0.0244;
+}
+
+object overhead_line_conductor {
+    name OH101;
+    resistance 0.592;
+    geometric_mean_radius 0.00814;
+}
+
+object node {
+    name Node1;
+    bustype SWING;
+    phases A|B|C;
+    nominal_voltage 115000;
+}
+
+object overhead_line {
+    name Line12;
+    from Node1;
+    to NodeXF;
+    phases A|B|C;
+    length 10.0;
+    configuration LC300;
+}
+
+object node {
+    name NodeXF;
+    phases A|B|C;
+    nominal_voltage 115000;
+}
+
+object transformer_configuration {
+    name XF300;
+    connect_type WYE_WYE;
+    power_rating 1000000;
+    primary_voltage 115000;
+    secondary_voltage 4160;
+    resistance 0.01;
+    reactance 0.06;
+}
+
+object transformer {
+    name Transformer23;
+    phases A|B|C;
+    from NodeXF;  
+    to Node2;    
+    configuration XF300;
+}
+
+object node {
+    name Node2;
+    phases A|B|C;
+    nominal_voltage 4160;
+}
+
+object overhead_line {
+    name Line23;
+    from Node2;
+    to Node3;
+    phases A|B|C;
+    length 10.0;
+    configuration LC300;
+}
+
+object switch {
+    name SwitchMicrogrid;
+    from Node2;
+    to Node3;
+    phases A|B|C;
+    status OPEN;  
+}
+
+object node {
+    name Node3;
+    phases A|B|C;
+    nominal_voltage 4160;
+}
+
+object inverter {
+    name InverterMicrogrid;
+    parent Node3;
+    phases A|B|C;
+    generator_mode CONSTANT_PF;
+    rated_power 400000;  
+    power_factor 0.95;
+    inverter_efficiency 0.95;
+    generator_status ONLINE;
+}
+
+object load {
+    name IndustrialLoad;
+    parent Node2;
+    phases A|B|C;
+    nominal_voltage 4160;
+    constant_power_A 500000+150000j;
+    constant_power_B 500000+150000j;
+    constant_power_C 500000+150000j;
+}
+
+object load {
+    name IslandLoad;
+    parent Node3;
+    phases A|B|C;
+    nominal_voltage 4160;
+    constant_power_A 200000+50000j;
+    constant_power_B 200000+50000j;
+    constant_power_C 200000+50000j;
+}
+
+object player {
+    name IslandLoadControl;
+    parent IslandLoad;
+    property constant_power_A,constant_power_B,constant_power_C;
+    file "island_load.csv";
+}
+
+object player {
+    name SwitchControlMicrogrid;
+    parent SwitchMicrogrid;
+    property status;
+    file "microgrid_switch.csv";
+}
+
+object recorder {
+    name RecorderNode2;
+    parent Node2;
+    property voltage_A, voltage_B, voltage_C;
+    interval 60;
+    file Node2_Voltage.csv;
+}
+
+object recorder {
+    name RecorderNode3;
+    parent Node3;
+    property voltage_A, voltage_B, voltage_C;
+    interval 60;
+    file Node3_Voltage.csv;
+}
+
+object recorder {
+    name TransformerPowerRecorder;
+    parent Transformer23;
+    property power_in, power_out;
+    interval 60;
+    file TransformerPower.csv;
+}
+object recorder {
+    name Line12PowerRecorder;
+    parent Line12;
+    property power_in, power_out;
+    interval 60;
+    file Line12_Power.csv;
+}
+
+object recorder {
+    name Line23PowerRecorder;
+    parent Line23; 
+    property power_in, power_out;
+    interval 60;
+    file Line23_Power.csv;
+}
+
+object recorder {
+    name SwitchStatusRecorder;
+    parent SwitchMicrogrid;
+    property status;
+    interval 60;
+    file Switch_Status.csv;
+}
